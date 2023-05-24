@@ -54,178 +54,179 @@ Parameters
 
  #>
  
-param(
-  [switch]$refreshcache = $false,
-  [switch]$readcache = $false,
-  [switch]$clearcache = $false,
-  [switch]$writecache = $false,
-  [switch]$createScheduledTask = $false,
-  [string]$item = ""
-)
-
-
-$WUInfoCacheFile = "C:\util\zabbix\scripts\wu-info.json"
-$err_no_wuinfo_cache = '{"windows-update-info": {"error": "no windows updates info cache file available"}]'
-
-
-
-function createScheduledtask (){
-#	# Create scheduled task
-	$taskname = "WU-Info Refresh Cache"
-	$trigger= New-ScheduledTaskTrigger -At 01:00 -Daily
-	$user= "SYSTEM"
-	$action= New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy bypass -File C:\util\zabbix\scripts\wu-info.ps1 -refreshcache"
-
-	Register-ScheduledTask -TaskName $taskname -Trigger $trigger -User $user -Action $action -RunLevel Highest -Force
-}
-
-
-
-
-function Get-DaysSinceLastUpdate {
-	$diff = (Get-HotFix | Sort-Object -Property InstalledOn)[-1] | Select-Object InstalledOn
-	return (New-TimeSpan -Start $diff.InstalledOn -end Get-Date).days
-}
-
-function Get-UninstalledUpdatesCount {
-	[Int]$Count = 0
-	$Searcher = new-object -com "Microsoft.Update.Searcher"
-	$Searcher.Search("IsAssigned=1 and IsHidden=0 and IsInstalled=0").Updates | ForEach-Object { $Count++ }
-	return $Count
-}
-
-
-
-function Get-WindowsUpdatesStats {
-	$result= @()
-	$result = [ordered]@{
-				"days-elapsed"= Get-DaysSinceLastUpdate
-				"updates-waiting"= Get-UninstalledUpdatesCount
-				"timestamp"= (Get-Date).toString("yyyy/MM/dd HH:mm:ss")			
-	}
-	return $result
- }
-
-
-
-function Get-UpdateInfo($update) {
-	$result=@()
-	$result = [ordered]@{
-		$update.Title= @{		  
-				installed = $update.IsInstalled
-				isdownloaded = $update.IsDownloaded
-		}
-    }
-	return $result	
-}
-
- function Get-UpdatesList {
-	$result=@()
-	$Searcher = new-object -com "Microsoft.Update.Searcher"
-	$updateList = $Searcher.Search("IsAssigned=1 and IsHidden=0").Updates 
-	$updateList | ForEach {
-		$result += Get-UpdateInfo($_)
-	}
-
-	$output= @()
-	$output = [ordered]@{
-				"windows-update-list"= @($result)
-	}
-	return $output
- }
-
-
-
-
-function Get-UpdateInfoJSON {
-	$output=@()
-	$stats = Get-WindowsUpdatesStats
-	$list = Get-UpdatesList
-	
-	@{"windows-update-info"=@($stats; $list)} | ConvertTo-Json -Depth 6 -Compress
-}
-
-
-function outputItem($output) {
-	($output | ConvertFrom-Json)."windows-update-info".$item
-}
-
-function main {
-
-	$output=""
-	$cacheParam=$false
-
-	if ($createScheduledTask) {
-		createScheduledTask
-		break
-	}
-
-	$cacheParam=$false
-
-	if ($refreshcache) {
-		$clearcache = $true
-		$writecache = $true
-	}
-		
-	
-	if ($clearcache) {
-		$cacheParam=$true
-		try {
-			Remove-Item -Path $WUInfoCacheFile -ErrorAction SilentlyContinue
-		} 
-		catch { 
-			break 
-		}
-
-		if ($readcache) {
-			# cache will be read, so create new one!
-			$writecache = $true
-		}
-	}
-
-	if ($writecache) {
-		$cacheParam=$true
-		$output = UpdateInfoJSON
-		$output | Set-Content -Path $WUInfoCacheFile
-	}
-
-
-	if (!$cacheParam) {
-		#no cache control params processed, process as readcache"
-		$readCache = $true
-	}
-	
-	if ($readcache)  {
-		try {
-			$output = Get-Content -Path $WUInfoCacheFile -ErrorAction Stop
-		}
-		catch {
-			if ($cacheParam) {
-				#Cache control params processed, so cache read error is final, give error json if no specific item is asked
-				if (!$item){
-					$err_no_wuinfo_cache
-				}
-				break
-			} else {
-				# Cache read error, so creating new info"
-				$output = UpdateInfoJSON
-				$output | Set-Content -Path $WUInfoCacheFile
-			}
-		}
-		
-		if ($item) {
-			# return single item value
-			outputItem $output
-			break
-		} else {
-			# no item specified, give full windows update info json
-			$output
-		}
-		break
-	}
-	
-}	
-
-
-
-main
+ param(
+	[switch]$refreshcache = $false,
+	[switch]$readcache = $false,
+	[switch]$clearcache = $false,
+	[switch]$writecache = $false,
+	[switch]$createScheduledTask = $false,
+	[string]$item = ""
+  )
+  
+  
+  $WUInfoCacheFile = "C:\util\zabbix\scripts\wu-info.json"
+  $err_no_wuinfo_cache = '{"windows-update-info": {"error": "no windows updates info cache file available"}]'
+  
+  
+  
+  function createScheduledtask (){
+  #	# Create scheduled task
+	  $taskname = "WU-Info Refresh Cache"
+	  $trigger= New-ScheduledTaskTrigger -At 01:00 -Daily
+	  $user= "SYSTEM"
+	  $action= New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy bypass -File C:\util\zabbix\scripts\wu-info.ps1 -refreshcache"
+  
+	  Register-ScheduledTask -TaskName $taskname -Trigger $trigger -User $user -Action $action -RunLevel Highest -Force
+  }
+  
+  
+  
+  
+  function Get-DaysSinceLastUpdate {
+	  $now = Get-Date
+	  $diff = (Get-HotFix | Sort-Object -Property InstalledOn)[-1] | Select-Object InstalledOn
+	  return (New-TimeSpan -Start $diff.InstalledOn -end $now).days
+  }
+  
+  function Get-UninstalledUpdatesCount {
+	  [Int]$Count = 0
+	  $Searcher = new-object -com "Microsoft.Update.Searcher"
+	  $Searcher.Search("IsAssigned=1 and IsHidden=0 and IsInstalled=0").Updates | ForEach-Object { $Count++ }
+	  return $Count
+  }
+  
+  
+  
+  function Get-WindowsUpdatesStats {
+	  $result= @()
+	  $result = [ordered]@{
+				  "days-elapsed"= Get-DaysSinceLastUpdate
+				  "updates-waiting"= Get-UninstalledUpdatesCount
+				  "timestamp"= (Get-Date).toString("yyyy/MM/dd HH:mm:ss")			
+	  }
+	  return $result
+   }
+  
+  
+  
+  function Get-UpdateInfo($update) {
+	  $result=@()
+	  $result = [ordered]@{
+		  $update.Title= @{		  
+				  installed = $update.IsInstalled
+				  isdownloaded = $update.IsDownloaded
+		  }
+	  }
+	  return $result	
+  }
+  
+   function Get-UpdatesList {
+	  $result=@()
+	  $Searcher = new-object -com "Microsoft.Update.Searcher"
+	  $updateList = $Searcher.Search("IsAssigned=1 and IsHidden=0").Updates 
+	  $updateList | ForEach {
+		  $result += Get-UpdateInfo($_)
+	  }
+  
+	  $output= @()
+	  $output = [ordered]@{
+				  "windows-update-list"= @($result)
+	  }
+	  return $output
+   }
+  
+  
+  
+  
+  function Get-UpdateInfoJSON {
+	  $output=@()
+	  $stats = Get-WindowsUpdatesStats
+	  $list = Get-UpdatesList
+	  
+	  @{"windows-update-info"=@($stats; $list)} | ConvertTo-Json -Depth 6 # -Compress
+  }
+  
+  
+  function outputItem($output) {
+	  ($output | ConvertFrom-Json)."windows-update-info".$item
+  }
+  
+  function main {
+  
+	  $output=""
+	  $cacheParam=$false
+  
+	  if ($createScheduledTask) {
+		  createScheduledTask
+		  break
+	  }
+  
+	  $cacheParam=$false
+  
+	  if ($refreshcache) {
+		  $clearcache = $true
+		  $writecache = $true
+	  }
+		  
+	  
+	  if ($clearcache) {
+		  $cacheParam=$true
+		  try {
+			  Remove-Item -Path $WUInfoCacheFile -ErrorAction SilentlyContinue
+		  } 
+		  catch { 
+			  break 
+		  }
+  
+		  if ($readcache) {
+			  # cache will be read, so create new one!
+			  $writecache = $true
+		  }
+	  }
+  
+	  if ($writecache) {
+		  $cacheParam=$true
+		  $output = UpdateInfoJSON
+		  $output | Set-Content -Path $WUInfoCacheFile
+	  }
+  
+  
+	  if (!$cacheParam) {
+		  #no cache control params processed, process as readcache"
+		  $readCache = $true
+	  }
+	  
+	  if ($readcache)  {
+		  try {
+			  $output = Get-Content -Path $WUInfoCacheFile -ErrorAction Stop
+		  }
+		  catch {
+			  if ($cacheParam) {
+				  #Cache control params processed, so cache read error is final, give error json if no specific item is asked
+				  if (!$item){
+					  $err_no_wuinfo_cache
+				  }
+				  break
+			  } else {
+				  # Cache read error, so creating new info"
+				  $output = UpdateInfoJSON
+				  $output | Set-Content -Path $WUInfoCacheFile
+			  }
+		  }
+		  
+		  if ($item) {
+			  # return single item value
+			  outputItem $output
+			  break
+		  } else {
+			  # no item specified, give full windows update info json
+			  $output
+		  }
+		  break
+	  }
+	  
+  }	
+  
+  
+  
+  main
