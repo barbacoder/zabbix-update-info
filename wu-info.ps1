@@ -143,7 +143,7 @@ Parameters
 	  $stats = Get-WindowsUpdatesStats
 	  $list = Get-UpdatesList
 	  
-	  @{"windows-update-info"=@($stats; $list)} | ConvertTo-Json -Depth 6 # -Compress
+	  @{"windows-update-info"=@($stats; $list)} | ConvertTo-Json -Depth 6 -Compress
   }
   
   
