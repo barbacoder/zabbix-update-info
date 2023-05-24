@@ -1,7 +1,7 @@
 zabbix_export:
-  version: '6.2'
+  version: '5.4'
   date: '2023-05-24T11:47:21Z'
-  template_groups:
+  groups:
     -
       uuid: 7df96b18c230490a9a0a9e2307226338
       name: Templates
@@ -10,9 +10,10 @@ zabbix_export:
       uuid: fcadcc5e55e74a9f8de15afd602a51de
       template: 'Template Windows Update Statistics'
       name: 'Template Windows Update Statistics'
-      description: |
-        version: 20230524
+      description:
         This template retreives windows update info statistics created by the wu-info.ps1 script. For installation of this script see the ps1 file,
+        version: 20230524
+        For latest version, see: https://github.com/barbacoder/zabbix-update-info
         
         Items 
         - Windows update updates-waiting: amount of not yet installed updated

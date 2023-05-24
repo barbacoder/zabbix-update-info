@@ -7,6 +7,8 @@ Script name: wu-info.ps1
 Author: Frank Korpershoek
 20230501/FK: initial version
 
+For latest version, see: https://github.com/barbacoder/zabbix-update-info
+
 Dependencies: 
 
 Todo:
