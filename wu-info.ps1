@@ -1,10 +1,38 @@
-
 <#
+.SYNOPSIS
+    This scripts returns Windows Updates information in JSON format. This can
+    be used by Zabbix for monitoring.
+.NOTES
+Script name: wu-info.ps1
+Author: Frank Korpershoek
+20230501/FK: initial version
+
+Dependencies: 
+
+Todo:
+- make install location flexible
+
+Installation:
+
+- Copy this script to c:\util\zabbix\scripts
+	Currently the script contains some coded depencies to c:\util\zabbix\scripts 
+- Adjust zabbix agent configuration file with UserParams:
+	 #UserParameter=windows.update.stats.create-scheduled-task,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -createScheduledTask
+	UserParameter=windows.update.stats.json,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -readcache
+	UserParameter=windows.update.stats.json.refresh,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -refreshcache
+	UserParameter=windows.update.stats.days-elapsed,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -readcache -item days-elapsed
+	UserParameter=windows.update.stats.updates-waiting,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -readcache -item updates-waiting
+	UserParameter=windows.update.stats.timestamp,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -readcache -item timestamp
+- Restart zabbix agent
+- Retreiving the info takes more time than desired for the zabbix agent, so create a scheduled task to create a daily fresh json windows update info cache file.
+	c:\util\zabbix\scripts\wu-info.ps1 -createScheduledTask
+- Import Zabbix template file
+- Attach template to windows servers
 
 
 Parameters
  -createScheduledTask
-	 should be run as Administrator! This will create a scheduled task to clear and create the windows update info cache file.
+	 should be run as Administrator! This will create a scheduled task daily at 1:00. This task clears and creates a new windows update info cache file. 
  -clearcache
 	clear cache, no output
  -writecache
@@ -12,23 +40,18 @@ Parameters
  -refreshcache
 	clear+write, no output
 
- -readcache : gives error json when no cache is present, can be ommited, usefull in combination with any of the clear|write|refreshcache options
+ -readcache : gives error json when no cache is present, can be ommited, usefull in combination with any of the clear|write|refreshcache options to enable output for them.
  
  -item <item name> any of the available json items gives value of item
  -item days-elapsed 
  -item updates-waiting
  -item timestamp
  
+ When no parameter or readcache without item name is given, the output will be the complete Windows Update Info JSON
  
- Zabbix UserParams:
- #UserParameter=windows.update.stats.create-scheduled-task,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -createScheduledTask
-UserParameter=windows.update.stats.json,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -readcache
-UserParameter=windows.update.stats.json.refresh,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -refreshcache
-UserParameter=windows.update.stats.days-elapsed,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -readcache -item days-elapsed
-UserParameter=windows.update.stats.updates-waiting,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -readcache -item updates-waiting
-UserParameter=windows.update.stats.timestamp,powershell.exe -NoProfile -ExecutionPolicy bypass -File "C:\util\zabbix\scripts\wu-info.ps1" -readcache -item timestamp
+ 
+ Inspired on: https://sbcode.net/zabbix/powershell-windows-updates/
 
- 
  #>
  
 param(
@@ -42,13 +65,13 @@ param(
 
 
 $WUInfoCacheFile = "C:\util\zabbix\scripts\wu-info.json"
-$err_no_wuinfo_cache = '{"windows-update-info": {"error": "no windows updates stats cache file available"}]'
+$err_no_wuinfo_cache = '{"windows-update-info": {"error": "no windows updates info cache file available"}]'
 
 
 
 function createScheduledtask (){
 #	# Create scheduled task
-	$taskname = "WU-Stats Refresh Cache"
+	$taskname = "WU-Info Refresh Cache"
 	$trigger= New-ScheduledTaskTrigger -At 01:00 -Daily
 	$user= "SYSTEM"
 	$action= New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy bypass -File C:\util\zabbix\scripts\wu-info.ps1 -refreshcache"
@@ -58,17 +81,13 @@ function createScheduledtask (){
 
 
 
-# https://sbcode.net/zabbix/powershell-windows-updates/
 
 function Get-DaysSinceLastUpdate {
-	$date = Get-Date
 	$diff = (Get-HotFix | Sort-Object -Property InstalledOn)[-1] | Select-Object InstalledOn
-	$diff3 = New-TimeSpan -Start $diff.InstalledOn -end $date
-	return $diff3.days
+	return (New-TimeSpan -Start $diff.InstalledOn -end Get-Date).days
 }
 
 function Get-UninstalledUpdatesCount {
-	#Attribution: https://sbcode.net/zabbix/powershell-windows-updates/
 	[Int]$Count = 0
 	$Searcher = new-object -com "Microsoft.Update.Searcher"
 	$Searcher.Search("IsAssigned=1 and IsHidden=0 and IsInstalled=0").Updates | ForEach-Object { $Count++ }
@@ -78,7 +97,6 @@ function Get-UninstalledUpdatesCount {
 
 
 function Get-WindowsUpdatesStats {
-#	Write-Host "*** Get-WindowsUpdatesStats"
 	$result= @()
 	$result = [ordered]@{
 				"days-elapsed"= Get-DaysSinceLastUpdate
@@ -91,7 +109,6 @@ function Get-WindowsUpdatesStats {
 
 
 function Get-UpdateInfo($update) {
-#	Write-Host "*** Get-UpdateInfo" + $update.Title
 	$result=@()
 	$result = [ordered]@{
 		$update.Title= @{		  
@@ -103,7 +120,6 @@ function Get-UpdateInfo($update) {
 }
 
  function Get-UpdatesList {
-#	Write-Host "*** Get-UpdatesList"
 	$result=@()
 	$Searcher = new-object -com "Microsoft.Update.Searcher"
 	$updateList = $Searcher.Search("IsAssigned=1 and IsHidden=0").Updates 
@@ -122,7 +138,6 @@ function Get-UpdateInfo($update) {
 
 
 function Get-UpdateInfoJSON {
-	# create ordered list of results
 	$output=@()
 	$stats = Get-WindowsUpdatesStats
 	$list = Get-UpdatesList
@@ -132,10 +147,7 @@ function Get-UpdateInfoJSON {
 
 
 function outputItem($output) {
-	$data = $output | ConvertFrom-Json
-	$data2 = $data."windows-update-info"
-	$output = $data2.$item
-	$output
+	($output | ConvertFrom-Json)."windows-update-info".$item
 }
 
 function main {
@@ -201,10 +213,12 @@ function main {
 			}
 		}
 		
-		if ($item) { 
+		if ($item) {
+			# return single item value
 			outputItem $output
 			break
 		} else {
+			# no item specified, give full windows update info json
 			$output
 		}
 		break
