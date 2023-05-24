@@ -1,0 +1,70 @@
+zabbix_export:
+  version: '6.2'
+  date: '2023-05-24T11:47:21Z'
+  template_groups:
+    -
+      uuid: 7df96b18c230490a9a0a9e2307226338
+      name: Templates
+  templates:
+    -
+      uuid: fcadcc5e55e74a9f8de15afd602a51de
+      template: 'Template Windows Update Statistics'
+      name: 'Template Windows Update Statistics'
+      description: |
+        version: 20230524
+        This template retreives windows update info statistics created by the wu-info.ps1 script. For installation of this script see the ps1 file,
+        
+        Items 
+        - Windows update updates-waiting: amount of not yet installed updated
+        - Windows update days-elapsed: amount of days since last update
+        - Windows update stats timestamp: timestamp of cached windows update information
+        - Windows update stats JSON: complete information, including installed updates list
+        
+        Triggers:
+        - HIGH: Last update > 60 days, only triggerd when also updates-waiting > 0
+        - WARNING: Updates waiting > 0
+      groups:
+        -
+          name: Templates
+      items:
+        -
+          uuid: 852434a724f24cdf940fc972e7e1e972
+          name: 'Windows update days-elapsed'
+          key: windows.update.stats.days-elapsed
+          delay: 1d
+          history: 365d
+          units: d
+        -
+          uuid: fd57b0c1bef24a4a82b9a449b05693c2
+          name: 'Windows update stats JSON'
+          key: windows.update.stats.json
+          delay: 1d
+          history: '0'
+          trends: '0'
+          value_type: TEXT
+        -
+          uuid: 3710f82f4ec04cd091335b0826c313c3
+          name: 'Windows update stats timestamp'
+          key: windows.update.stats.timestamp
+          delay: 1d
+          history: 365d
+          trends: '0'
+          value_type: TEXT
+        -
+          uuid: 93beb8d86c0d4d8298671810c5f64905
+          name: 'Windows update updates-waiting'
+          key: windows.update.stats.updates-waiting
+          delay: 1d
+          history: 365d
+          triggers:
+            -
+              uuid: 8335570e6b7f4944b30cdf5ecb3db09b
+              expression: 'last(/Template Windows Update Statistics/windows.update.stats.updates-waiting)>0'
+              name: 'Updates waiting'
+              priority: WARNING
+  triggers:
+    -
+      uuid: fcdf81a1699e4321845669246f1bc02d
+      expression: 'last(/Template Windows Update Statistics/windows.update.stats.days-elapsed)>60 and last(/Template Windows Update Statistics/windows.update.stats.updates-waiting)>0'
+      name: 'Last update > 60 days'
+      priority: HIGH
