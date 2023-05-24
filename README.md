@@ -34,4 +34,4 @@ zabbix_agent2.userparams.conf:
     > C:\util\zabbix\scripts\wu-info.ps1 -createScheduledTask
     - Check if scripts is working
     > C:\util\zabbix\scripts\wu-info.ps1 -refreshcache -readcache
-    This command will give the full JSON output if everything is working
+        This command will give the full JSON output if everything is working
