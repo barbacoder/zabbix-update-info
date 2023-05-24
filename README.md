@@ -2,10 +2,10 @@
 This Repo contains two files
 
 wu-info.ps1
-This script creates a cache file with some windows updates statistics or returns the desired values from this cache file for use with zabbix (or any other monitoring system) See script for detailed infomation.
+- This script creates a cache file with some windows updates statistics or returns the desired values from this cache file for use with zabbix (or any other monitoring system) See script for detailed infomation.
 
 zbx-template-wuinfo.yaml
-This template retreives windows update info statistics created by the wu-info.ps1 script.
+- This template retreives windows update info statistics created by the wu-info.ps1 script.
 
 Items 
 - Windows update updates-waiting: amount of not yet installed updated
