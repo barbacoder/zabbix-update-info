@@ -82,7 +82,14 @@ Parameters
   }
   
   
-  
+
+    function Get-UpdatesPendingReboot {
+	  if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired"){
+		  return 1
+	  } else {
+		  return 0
+	  }
+  }
   
   function Get-DaysSinceLastUpdate {
 	  $now = Get-Date
@@ -90,7 +97,7 @@ Parameters
 	  return (New-TimeSpan -Start $diff.InstalledOn -end $now).days
   }
   
-  function Get-UninstalledUpdatesCount {
+  function Get-NotInstalledUpdatesCount {
 	  [Int]$Count = 0
 	  $Searcher = new-object -com "Microsoft.Update.Searcher"
 	  $Searcher.Search("IsAssigned=1 and IsHidden=0 and IsInstalled=0").Updates | ForEach-Object { $Count++ }
@@ -103,7 +110,8 @@ Parameters
 	  $result= @()
 	  $result = [ordered]@{
 				  "days-elapsed"= Get-DaysSinceLastUpdate
-				  "updates-waiting"= Get-UninstalledUpdatesCount
+				  "updates-waiting"= Get-NotInstalledUpdatesCount
+				  "rebootpending"= Get-UpdatesPendingReboot
 				  "timestamp"= (Get-Date).toString("yyyy/MM/dd HH:mm:ss")			
 	  }
 	  return $result
