@@ -32,6 +32,6 @@ zabbix_agent2.userparams.conf:
 - In Powershell:
     - Create scheduled task to daily refresh windows update info cache file
     > C:\util\zabbix\scripts\wu-info.ps1 -createScheduledTask
-    - Check if scripts is working
+    - Check if scripts is working. This command refreshes the cache file and should give the full JSON output with Windows Update Statistics.
     > C:\util\zabbix\scripts\wu-info.ps1 -refreshcache -readcache
-    This command will give the full JSON output if everything is working
+        This command will give the full JSON output if everything is working
