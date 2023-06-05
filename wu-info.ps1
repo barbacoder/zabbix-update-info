@@ -6,6 +6,7 @@
 Script name: wu-info.ps1
 Author: Frank Korpershoek
 20230501/FK: initial version
+20230604/FK: added Updates Pending Reboot check, renamed f to Get-NotInstalledUpdatesCount
 
 For latest version, see: https://github.com/barbacoder/zabbix-update-info
 
